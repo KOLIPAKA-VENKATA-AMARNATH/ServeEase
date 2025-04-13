@@ -14,7 +14,7 @@ import java.util.UUID;
 import java.time.LocalDateTime;
 
 @RestController
-@RequestMapping("/api/service-providers")  // Change from "/api/providers" to "/api/service-providers"
+@RequestMapping("/api/service-providers")
 @CrossOrigin(origins = "*")
 public class ServiceProviderController {
 
@@ -26,7 +26,6 @@ public class ServiceProviderController {
         try {
             String providerId = UUID.randomUUID().toString();
             
-            // Create a new ServiceProvider with constructor
             ServiceProvider newProvider = new ServiceProvider(
                 providerId,
                 provider.getName(),
@@ -39,7 +38,6 @@ public class ServiceProviderController {
                 provider.getAbout()
             );
             
-            // Set additional fields
             newProvider.setServices(provider.getServices());
             
             Map<String, Object> providerData = new HashMap<>();
@@ -55,6 +53,7 @@ public class ServiceProviderController {
             providerData.put("services", newProvider.getServices());
             providerData.put("approvalStatus", newProvider.getApprovalStatus());
             providerData.put("active", newProvider.isActive());
+            providerData.put("password", provider.getPassword());
 
             firebaseService.getFirestore()
                 .collection("serviceProviders")
@@ -102,7 +101,6 @@ public class ServiceProviderController {
             for (var doc : bookingDocs.getDocuments()) {
                 Map<String, Object> data = doc.getData();
                 Booking booking = new Booking();
-                // Set booking fields from data
                 booking.setBooking_id((String) data.get("booking_id"));
                 booking.setCustomer_id((String) data.get("customer_id"));
                 booking.setService_provider_id((String) data.get("service_provider_id"));
@@ -122,50 +120,6 @@ public class ServiceProviderController {
         }
     }
 
-    @GetMapping("/all")
-    public ResponseEntity<?> getAllProviders() {
-        try {
-            List<ServiceProvider> providers = new ArrayList<>();
-            var querySnapshot = firebaseService.getFirestore()
-                .collection("serviceProviders")
-                .get()
-                .get();
-
-            for (var doc : querySnapshot.getDocuments()) {
-                Map<String, Object> data = doc.getData();
-                ServiceProvider provider = new ServiceProvider(
-                    (String) data.get("provider_id"),
-                    (String) data.get("name"),
-                    (String) data.get("phone"),
-                    (String) data.get("email"),
-                    (String) data.get("adhar"),
-                    (String) data.get("address"),
-                    (String) data.get("gender"),
-                    ((Long) data.get("age")).intValue(),
-                    (String) data.get("about")
-                );
-                
-                provider.setServices((List<String>) data.get("services"));
-                provider.setApprovalStatus((String) data.get("approvalStatus"));
-                provider.setActive((Boolean) data.getOrDefault("active", false));
-                
-                providers.add(provider);
-            }
-
-            return ResponseEntity.ok(providers);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().body("Error fetching providers: " + e.getMessage());
-        }
-    }
-
-    // Add this test endpoint
-    @GetMapping("/test")
-    public ResponseEntity<?> testEndpoint() {
-        return ResponseEntity.ok("Service Provider Controller is working");
-    }
-
-    // Modify the approval endpoint to ensure it's properly mapped
     @PutMapping("/{providerId}/approval")
     @CrossOrigin(origins = "*")
     public ResponseEntity<?> updateProviderApproval(
@@ -173,7 +127,7 @@ public class ServiceProviderController {
             @RequestBody Map<String, String> request) {
         try {
             String approvalStatus = request.get("approvalStatus");
-            System.out.println("Received request - Provider ID: " + providerId + ", Status: " + approvalStatus); // Debug log
+            System.out.println("Received request - Provider ID: " + providerId + ", Status: " + approvalStatus);
 
             if (approvalStatus == null || !approvalStatus.matches("APPROVED|REJECTED|PENDING")) {
                 return ResponseEntity.badRequest()
@@ -206,6 +160,61 @@ public class ServiceProviderController {
             e.printStackTrace();
             return ResponseEntity.internalServerError()
                 .body("Error updating provider approval status: " + e.getMessage());
+        }
+    }
+    
+    @PostMapping("/login")
+    @CrossOrigin(origins = "*")
+    public ResponseEntity<?> loginProvider(@RequestBody Map<String, String> loginRequest) {
+        try {
+            String name = loginRequest.get("name");
+            String password = loginRequest.get("password");
+
+            if (name == null || name.trim().isEmpty() ||
+                password == null || password.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body("Name and password are required");
+            }
+
+            var querySnapshot = firebaseService.getFirestore()
+                .collection("serviceProviders")
+                .whereEqualTo("name", name)
+                .get()
+                .get();
+
+            if (querySnapshot.isEmpty()) {
+                return ResponseEntity.status(401).body("Invalid credentials");
+            }
+
+            var providerDoc = querySnapshot.getDocuments().get(0);
+            Map<String, Object> data = providerDoc.getData();
+
+            String storedPassword = (String) data.get("password");
+            if (storedPassword == null || !password.equals(storedPassword)) {
+                return ResponseEntity.status(401).body("Invalid credentials");
+            }
+
+            ServiceProvider provider = new ServiceProvider(
+                (String) data.get("provider_id"),
+                (String) data.get("name"),
+                (String) data.get("phone"),
+                (String) data.get("email"),
+                (String) data.get("adhar"),
+                (String) data.get("address"),
+                (String) data.get("gender"),
+                ((Long) data.get("age")).intValue(),
+                (String) data.get("about")
+            );
+            
+            provider.setServices((List<String>) data.get("services"));
+            provider.setApprovalStatus((String) data.get("approvalStatus"));
+            provider.setActive((Boolean) data.getOrDefault("active", false));
+
+            return ResponseEntity.ok(provider);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError()
+                .body("Error during login: " + e.getMessage());
         }
     }
 }

@@ -160,4 +160,16 @@ public class ServiceProvider {
     public void setReviews(List<Review> reviews) {
         this.reviews = reviews;
     }
+
+    // Add this field with other private fields at the top
+    private String password;
+
+    // Add this getter and setter with other getters/setters
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
 }

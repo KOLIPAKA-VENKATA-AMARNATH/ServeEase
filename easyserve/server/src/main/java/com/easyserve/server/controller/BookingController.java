@@ -31,6 +31,24 @@ public class BookingController {
                     .body("All required fields must be provided");
             }
 
+            // Check if service provider is approved
+            var providerDoc = firebaseService.getFirestore()
+                .collection("serviceProviders")
+                .document(booking.getService_provider_id())
+                .get()
+                .get();
+
+            if (!providerDoc.exists()) {
+                return ResponseEntity.badRequest()
+                    .body("Service provider not found");
+            }
+
+            String approvalStatus = (String) providerDoc.getData().get("approvalStatus");
+            if (!"APPROVED".equals(approvalStatus)) {
+                return ResponseEntity.badRequest()
+                    .body("Cannot book with unapproved service provider");
+            }
+
             String bookingId = UUID.randomUUID().toString();
             booking.setBooking_id(bookingId);
             booking.setBookingDate(LocalDateTime.now().toString());

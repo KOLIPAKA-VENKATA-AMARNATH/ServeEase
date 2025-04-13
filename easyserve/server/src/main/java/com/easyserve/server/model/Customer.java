@@ -6,6 +6,7 @@ public class Customer {
     private String customer_id;
     private String name;
     private String email;
+    private String password; // Add this field
     private String phone;
     private String address;
     private boolean isVerified;
@@ -94,12 +95,23 @@ public class Customer {
         this.bookings = bookings;
     }
 
+    // Add password getter and setter
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    // Update toString to include password (masked)
     @Override
     public String toString() {
         return "Customer{" +
                 "customer_id='" + customer_id + '\'' +
                 ", name='" + name + '\'' +
                 ", email='" + email + '\'' +
+                ", password='****'" + '\'' +
                 ", phone='" + phone + '\'' +
                 ", address='" + address + '\'' +
                 ", isVerified=" + isVerified +
