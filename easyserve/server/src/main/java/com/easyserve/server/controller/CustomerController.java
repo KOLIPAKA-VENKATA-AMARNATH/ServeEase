@@ -184,5 +184,79 @@ public class CustomerController {
                 .body("Error fetching service providers: " + e.getMessage());
         }
     }
+    
+    // Add these new search endpoints
+    @GetMapping("/service-providers/search")
+    public ResponseEntity<?> searchServiceProvidersByName(@RequestParam String name) {
+        try {
+            List<Map<String, Object>> providers = new ArrayList<>();
+            String searchName = name.toLowerCase();
+            
+            var querySnapshot = firebaseService.getFirestore()
+                .collection("serviceProviders")
+                .whereEqualTo("approvalStatus", "APPROVED")
+                .get()
+                .get();
+
+            for (var doc : querySnapshot.getDocuments()) {
+                Map<String, Object> data = doc.getData();
+                String providerName = ((String) data.get("name")).toLowerCase();
+                
+                if (providerName.contains(searchName)) {
+                    Map<String, Object> providerInfo = new HashMap<>();
+                    providerInfo.put("provider_id", doc.getId());
+                    providerInfo.put("name", data.get("name"));
+                    providerInfo.put("services", data.get("services"));
+                    providerInfo.put("experience", data.get("experience"));
+                    providerInfo.put("location", data.get("location"));
+                    providerInfo.put("phone", data.get("phone"));
+                    providerInfo.put("about", data.get("about"));
+                    
+                    providers.add(providerInfo);
+                }
+            }
+            return ResponseEntity.ok(providers);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error searching providers: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/service-providers/service")
+    public ResponseEntity<?> searchServiceProvidersByService(@RequestParam String service) {
+        try {
+            List<Map<String, Object>> providers = new ArrayList<>();
+            String searchService = service.toLowerCase();
+            
+            var querySnapshot = firebaseService.getFirestore()
+                .collection("serviceProviders")
+                .whereEqualTo("approvalStatus", "APPROVED")
+                .get()
+                .get();
+
+            for (var doc : querySnapshot.getDocuments()) {
+                Map<String, Object> data = doc.getData();
+                List<String> services = ((List<String>) data.get("services"));
+                
+                boolean hasService = services.stream()
+                    .anyMatch(s -> s.toLowerCase().contains(searchService));
+                
+                if (hasService) {
+                    Map<String, Object> providerInfo = new HashMap<>();
+                    providerInfo.put("provider_id", doc.getId());
+                    providerInfo.put("name", data.get("name"));
+                    providerInfo.put("services", data.get("services"));
+                    providerInfo.put("experience", data.get("experience"));
+                    providerInfo.put("location", data.get("location"));
+                    providerInfo.put("phone", data.get("phone"));
+                    providerInfo.put("about", data.get("about"));
+                    
+                    providers.add(providerInfo);
+                }
+            }
+            return ResponseEntity.ok(providers);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error searching by service: " + e.getMessage());
+        }
+    }
 }
 

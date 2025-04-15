@@ -270,4 +270,135 @@ public class AdminController {
                 .body("Error fetching customers: " + e.getMessage());
         }
     }
+
+    @GetMapping("/service-providers/search")
+    public ResponseEntity<?> searchServiceProvidersByName(@RequestParam String name) {
+        try {
+            List<ServiceProvider> providers = new ArrayList<>();
+            String searchName = name.toLowerCase();
+            
+            var querySnapshot = firebaseService.getFirestore()
+                .collection("serviceProviders")
+                .get()
+                .get();
+
+            for (var doc : querySnapshot.getDocuments()) {
+                Map<String, Object> data = doc.getData();
+                String providerName = ((String) data.get("name")).toLowerCase();
+                
+                if (providerName.contains(searchName)) {
+                    ServiceProvider provider = new ServiceProvider(
+                        doc.getId(),
+                        (String) data.get("name"),
+                        (String) data.get("phone"),
+                        (String) data.get("email"),
+                        (String) data.get("adhar"),
+                        (String) data.get("address"),
+                        (String) data.get("gender"),
+                        ((Long) data.get("age")).intValue(),
+                        (String) data.get("about")
+                    );
+                    provider.setServices((List<String>) data.get("services"));
+                    provider.setApprovalStatus((String) data.getOrDefault("approvalStatus", "PENDING"));
+                    provider.setActive((Boolean) data.getOrDefault("active", false));
+                    providers.add(provider);
+                }
+            }
+            return ResponseEntity.ok(providers);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error searching providers: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/service-providers/service")
+    public ResponseEntity<?> searchServiceProvidersByService(@RequestParam String service) {
+        try {
+            List<ServiceProvider> providers = new ArrayList<>();
+            String searchService = service.toLowerCase();
+            
+            var querySnapshot = firebaseService.getFirestore()
+                .collection("serviceProviders")
+                .get()
+                .get();
+
+            for (var doc : querySnapshot.getDocuments()) {
+                Map<String, Object> data = doc.getData();
+                List<String> services = ((List<String>) data.get("services"));
+                
+                boolean hasService = services.stream()
+                    .anyMatch(s -> s.toLowerCase().contains(searchService));
+                
+                if (hasService) {
+                    ServiceProvider provider = new ServiceProvider(
+                        doc.getId(),
+                        (String) data.get("name"),
+                        (String) data.get("phone"),
+                        (String) data.get("email"),
+                        (String) data.get("adhar"),
+                        (String) data.get("address"),
+                        (String) data.get("gender"),
+                        ((Long) data.get("age")).intValue(),
+                        (String) data.get("about")
+                    );
+                    provider.setServices(services);
+                    provider.setApprovalStatus((String) data.getOrDefault("approvalStatus", "PENDING"));
+                    provider.setActive((Boolean) data.getOrDefault("active", false));
+                    providers.add(provider);
+                }
+            }
+            return ResponseEntity.ok(providers);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error searching by service: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/announcements")
+    public ResponseEntity<?> updateAnnouncement(@RequestBody Map<String, String> announcementData) {
+        try {
+            String message = announcementData.get("message");
+            if (message == null || message.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Announcement message is required"));
+            }
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("message", message);
+            updates.put("timestamp", java.time.Instant.now().toString());
+
+            firebaseService.getFirestore()
+                .collection("announcements")
+                .document("current")
+                .set(updates)
+                .get();
+
+            return ResponseEntity.ok()
+                .body(Map.of(
+                    "message", "Announcement updated successfully",
+                    "announcement", updates
+                ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                .body(Map.of("error", "Error updating announcement: " + e.getMessage()));
+        }
+    }
+
+    // Keep the GET method for retrieving announcements
+    @GetMapping("/announcements")
+    public ResponseEntity<?> getAnnouncements() {
+        try {
+            var docSnapshot = firebaseService.getFirestore()
+                .collection("announcements")
+                .document("current")
+                .get()
+                .get();
+
+            if (!docSnapshot.exists()) {
+                return ResponseEntity.ok(Map.of("message", "No announcements"));
+            }
+
+            return ResponseEntity.ok(docSnapshot.getData());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error fetching announcements: " + e.getMessage());
+        }
+    }
 }
